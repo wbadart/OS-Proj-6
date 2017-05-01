@@ -1,2 +1,8 @@
 # OS-Proj-6
-Small filesystem implementation
+Simple filesystem implementation
+
+## Team
+
+- Cat Badart (netid: **cbadart**)
+- Will Badart (netid: **wbadart**)
+
