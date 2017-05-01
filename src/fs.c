@@ -52,7 +52,7 @@ void fs_debug()
     printf("    %d inode blocks\n",block.super.ninodeblocks);
     printf("    %d inodes\n",block.super.ninodes);
 
-    for(int i = 1; i <= block.super.ninodes; i++){
+    for(int i = 1; i <= block.super.ninodeblocks; i++){
         disk_read(i, block.data);
         for(int j = 0; j < INODES_PER_BLOCK; j++){
             if(block.inode[j].isvalid){
@@ -67,6 +67,18 @@ void fs_debug()
 int fs_mount()
 {
     printf("INFO: Mounting...\n");
+    union fs_block block;
+    disk_read(0, block.data);
+
+    for(int i = 1; i <= block.super.ninodeblocks; i++){
+        disk_read(i, block.data);
+        for(int j = 0; j < INODES_PER_BLOCK; j++){
+            if(block.inode[j].isvalid){
+                *G_FREE_BLOCK_BITMAP = *G_FREE_BLOCK_BITMAP | (1 << INODES_PER_BLOCK * (i-1) * j);
+            }
+        }
+    }
+
     return 0;
 }
 
