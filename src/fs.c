@@ -13,6 +13,8 @@
 #define POINTERS_PER_INODE 5
 #define POINTERS_PER_BLOCK 1024
 
+int *G_FREE_BLOCK_BITMAP;
+
 struct fs_superblock {
     int magic;
     int nblocks;
@@ -49,10 +51,22 @@ void fs_debug()
     printf("    %d blocks\n",block.super.nblocks);
     printf("    %d inode blocks\n",block.super.ninodeblocks);
     printf("    %d inodes\n",block.super.ninodes);
+
+    for(int i = 1; i <= block.super.ninodes; i++){
+        disk_read(i, block.data);
+        for(int j = 0; j < INODES_PER_BLOCK; j++){
+            if(block.inode[j].isvalid){
+                printf("inode %d:\n", INODES_PER_BLOCK * (i-1) + j);
+                printf("    size: %d bytes\n", block.inode[j].size);
+                printf("    direct blocks:\n");
+            }
+        }
+    }
 }
 
 int fs_mount()
 {
+    printf("INFO: Mounting...\n");
     return 0;
 }
 
