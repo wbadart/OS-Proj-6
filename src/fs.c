@@ -341,10 +341,22 @@ int fs_write( int inumber, const char *data, int length, int offset ){
 
         // Find out if inode has direct block ready
         if(block.inode[i_index].direct[i]){
+
+            // Write 4kb at a time
+            disk_write(block.inode[i_index].direct[i], data + bytes_written);
+            bytes_written += DISK_BLOCK_SIZE;
         }
 
         // Otherwise allocate a new block
         else{
+
+            // If there's room for another direct pointer...
+            if(i < POINTERS_PER_INODE){
+            }
+
+            // Otherwise, do some indirection
+            else{
+            }
         }
     }
 
