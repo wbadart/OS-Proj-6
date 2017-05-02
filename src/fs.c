@@ -183,8 +183,6 @@ int fs_mount(){
         }
     }
 
-    // Prepare filesystem for use
-
     // Return 1 (success code; failure is 0)
     return 1;
 }
