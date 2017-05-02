@@ -344,6 +344,7 @@ int fs_write( int inumber, const char *data, int length, int offset ){
 
             // Write 4kb at a time
             disk_write(block.inode[i_index].direct[i], data + bytes_written);
+            G_FREE_BLOCK_BITMAP[block.inode[i_index].direct[i]] = 1;
             bytes_written += DISK_BLOCK_SIZE;
         }
 
