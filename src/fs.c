@@ -13,7 +13,7 @@
 #define POINTERS_PER_INODE 5
 #define POINTERS_PER_BLOCK 1024
 
-#define DIVIDE(a, b) (a % b ? a / b + 1: a / b)
+#define DIVIDE(a, b) (a % b ? a / b + 1 : a / b)
 
 int *G_FREE_BLOCK_BITMAP;
 
