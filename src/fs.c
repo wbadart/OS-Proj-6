@@ -14,7 +14,7 @@
 #define POINTERS_PER_BLOCK 1024
 
 #define DIVIDE(a, b) (a % b ? a / b + 1 : a / b)
-#define INODE_NUMBER(blockno, index) (INODES_PER_BLOCK * (blockno-1) + index+1)
+#define INODE_NUMBER(blockno, index) (INODES_PER_BLOCK * (blockno-1) + index)
 
 int BEEN_MOUNTED = 0;
 char *G_FREE_BLOCK_BITMAP;
@@ -235,7 +235,7 @@ int fs_create(){
 int fs_delete( int inumber )
 {
     //figure out what block the inode is on and read that block
-    int block_num = (inumber - 1 - inumber % INODES_PER_BLOCK)/(INODES_PER_BLOCK) + 1;
+    int block_num = inumber / INODES_PER_BLOCK + 1;
     union fs_block block;
     disk_read(block_num, block.data);
     //figure out index of inode on that block
@@ -249,29 +249,33 @@ int fs_delete( int inumber )
     //check direct pointers
     for(int i = 0; i < POINTERS_PER_INODE; i++){
         int b = block.inode[inode_index].direct[i];
-        if(b)
+        if(b){
             G_FREE_BLOCK_BITMAP[b] = 0;
+        }
     }
     //check indirect pointer
     union fs_block indirect_block;
     int indirect_block_num = block.inode[inode_index].indirect;
-    disk_read(indirect_block_num, indirect_block.data);
-    for(int i = 0; i < POINTERS_PER_BLOCK; i++){
-        int b = indirect_block.pointers[i];
-        if(b)
-            G_FREE_BLOCK_BITMAP[b] = 0;
+    //if inode has indirect pointer, update those blocks in bitmap too
+    if(indirect_block_num){
+        disk_read(indirect_block_num, indirect_block.data);
+        for(int i = 0; i < POINTERS_PER_BLOCK; i++){
+            int b = indirect_block.pointers[i];
+            if(b)
+                G_FREE_BLOCK_BITMAP[b] = 0;
+        }
     }
 
     //set all the values of the inode block to 0
     block.inode[inode_index].isvalid = 0;
-    for(int i = 0; i < POINTERS_PER_INODE; i++)
-        block.inode[inode_index].direct[i] = 0;
-    block.inode[inode_index].indirect = 0;
+    //for(int i = 0; i < POINTERS_PER_INODE; i++)
+    //    block.inode[inode_index].direct[i] = 0;
+    //block.inode[inode_index].indirect = 0;
     //set all the values of the indirect block to 0
-    for(int i = 0; i < POINTERS_PER_BLOCK; i++)
-        indirect_block.pointers[i] = 0;
+    //for(int i = 0; i < POINTERS_PER_BLOCK; i++)
+    //    indirect_block.pointers[i] = 0;
     //write both blocks back
-    disk_write(indirect_block_num, indirect_block.data);
+    //disk_write(indirect_block_num, indirect_block.data);
     disk_write(block_num, block.data);
     return 1;
 }
