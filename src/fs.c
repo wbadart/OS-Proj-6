@@ -305,7 +305,30 @@ int fs_read( int inumber, char *data, int length, int offset )
     return 0;
 }
 
-int fs_write( int inumber, const char *data, int length, int offset )
-{
+int fs_write( int inumber, const char *data, int length, int offset ){
+
+    // Get the super block for some sanity checks
+    union fs_block superblock;;
+    disk_read(0, superblock.data);
+
+    // Perform checks on passed inumber
+    if(inumber <= 0 || inumber > superblock.super.ninodes){
+        printf("ERROR: inumber '%d' out of range.\n", inumber);
+        return 0;
+    }
+
+    // Get the block and index to get the inode itself
+    int blockno = inumber / INODES_PER_BLOCK + 1
+      , i_index = inumber % INODES_PER_BLOCK;
+
+    union fs_block block;
+    disk_read(blockno, block.data);
+
+    // More sanity checks
+    if(!block.inode[i_index].isvalid){
+        printf("ERROR: Inode #%d is invalid!\n", inumber);
+        return 0;
+    }
+
     return 0;
 }
