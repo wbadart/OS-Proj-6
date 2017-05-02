@@ -1,4 +1,5 @@
 simplefs
+data/*
 # Object files
 *.o
 *.ko
