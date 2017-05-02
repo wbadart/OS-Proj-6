@@ -8,10 +8,10 @@
 # created: MAY 2017
 ##
 
-CXX	      = /usr/bin/gcc
-CXX_FLAGS = -Wall -ggdb
+CXX	      = /afs/nd.edu/user14/csesoft/new/bin/gcc
+CXX_FLAGS = -Wall -ggdb -std=gnu11
 
-LD		  = /usr/bin/gcc
+LD		  = /afs/nd.edu/user14/csesoft/new/bin/gcc
 LD_FLAGS  =
 
 OUT  = simplefs
