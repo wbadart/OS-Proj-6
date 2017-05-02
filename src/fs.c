@@ -234,12 +234,8 @@ int fs_create(){
 
 int fs_delete( int inumber )
 {
-    if(inumber > SUPER.ninodes){
-        printf("There are not that many inodes\n");
-        return 0;
-    }
     //figure out what block the inode is on and read that block
-    int block_num = inumber / INODES_PER_BLOCK + 1;
+    int block_num = (inumber - 1 - inumber % INODES_PER_BLOCK)/(INODES_PER_BLOCK) + 1;
     union fs_block block;
     disk_read(block_num, block.data);
     //figure out index of inode on that block
@@ -249,8 +245,6 @@ int fs_delete( int inumber )
         printf("inode %d is invalid, cannot be deleted\n", inumber);
         return 0;
     }
-    //delete this return statement once bitmap is done correctly
-    return 1;
     //update values in free block map
     //check direct pointers
     for(int i = 0; i < POINTERS_PER_INODE; i++){
