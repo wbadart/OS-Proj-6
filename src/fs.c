@@ -15,7 +15,6 @@
 
 #define DIVIDE(a, b) (a % b ? a / b + 1 : a / b)
 
-
 int *G_FREE_BLOCK_BITMAP;
 
 struct fs_superblock {
@@ -64,31 +63,72 @@ int fs_format()
     return 0;
 }
 
-void fs_debug()
-{
+void fs_debug(){
+
+    // Process the super block
     union fs_block block;
+    disk_read(0, block.data);
 
-    disk_read(0,block.data);
-
+    // Debugging output for super block
     printf("superblock:\n");
     printf("    %d blocks\n",block.super.nblocks);
     printf("    %d inode blocks\n",block.super.ninodeblocks);
     printf("    %d inodes\n",block.super.ninodes);
 
+    // For each inode block (this excludes the super block
+    // at index 0)...
     for(int i = 1; i <= block.super.ninodeblocks; i++){
-        disk_read(i, block.data);
+
+        // Read the block from disk to the block struct
+        union fs_block direct_block;
+        disk_read(i, direct_block.data);
+
+        // For each inode in the block we just read...
         for(int j = 0; j < INODES_PER_BLOCK; j++){
-            if(block.inode[j].isvalid){
-                printf("inode %d:\n", INODES_PER_BLOCK * (i-1) + j);
-                printf("    size: %d bytes\n", block.inode[j].size);
-                printf("    direct blocks:\n");
+
+            // Skip invalid inodes, we only care about the ones
+            // that refer to actual files
+            if(!direct_block.inode[j].isvalid) continue;
+
+            // Regular inode debugging output
+            printf("inode %d:\n", INODES_PER_BLOCK * (i-1) + j);
+            printf("    size: %d bytes\n", direct_block.inode[j].size);
+            printf("    direct blocks: ");
+
+            // Report each direct block pointer (the list is null terminated and
+            // does not exceed POINTERS_PER_INODE in length)
+            for(int k = 0; k < POINTERS_PER_INODE && direct_block.inode[j].direct[k]; k++)
+                printf("%d ", direct_block.inode[j].direct[k]);
+            printf("\n");
+
+            // If the inode has an indirect pointer, process the target indoe
+            if(!direct_block.inode[j].indirect) continue;
+
+            // Report the indirect block info located within the inode
+            printf("    indirect block: %d\n", direct_block.inode[j].indirect);
+            printf("    indirect data blocks: ");
+
+            // Read in the indrect block and process it
+            union fs_block indirect_block;
+            disk_read(block.inode[j].indirect, indirect_block.data);
+
+            // For each inode in the indirect block...
+            for(int l = 0; l < INODES_PER_BLOCK; l++){
+
+                // Ignore invalid blocks
+                if(!indirect_block.inode[l].isvalid) continue;
+
+                // Report the direct pointers in the inode
+                for(int m = 0; m < POINTERS_PER_INODE && indirect_block.inode[l].direct[m]; m++)
+                    printf("%d ", indirect_block.inode[l].direct[m]);
             }
+            // Print the newline after the full inode report
+            printf("\n");
         }
     }
 }
 
-int fs_mount()
-{
+int fs_mount(){
     printf("INFO: Mounting...\n");
     union fs_block block;
     disk_read(0, block.data);
