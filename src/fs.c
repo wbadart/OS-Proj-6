@@ -45,8 +45,6 @@ int fs_format()
 
 void fs_debug(){
 
-    printf("8/2=%d, 9/2=%d\n", DIVIDE(8, 2), DIVIDE(9, 2));
-
     // Process the super block
     union fs_block block;
     disk_read(0, block.data);
@@ -99,11 +97,8 @@ void fs_debug(){
                 // Ignore invalid blocks
                 if(!indirect_block.inode[l].isvalid) continue;
 
-                printf("\nINODE %d is valid\n", l);
-                printf("Direct pointers at %d\n", indirect_block.inode[l].direct[0]);
-
                 // Report the direct pointers in the inode
-                for(int m = 0; m < POINTERS_PER_INODE && indirect_block.inode[l].direct[m]; m++)
+                for(int m = 0; m < POINTERS_PER_INODE /* && indirect_block.inode[l].direct[m]*/; m++)
                     printf("%d ", indirect_block.inode[l].direct[m]);
             }
             // Print the newline after the full inode report
