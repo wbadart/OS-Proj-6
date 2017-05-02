@@ -333,6 +333,21 @@ int fs_write( int inumber, const char *data, int length, int offset ){
     // Initialize helper data
     int bytes_written = 0;
 
+    // Calculate the number of blocks needed
+    int blocks_needed = length / DISK_BLOCK_SIZE;
+
+    // Write them bytes
+    for(int i = 0; i < blocks_needed; i++){
+
+        // Find out if inode has direct block ready
+        if(block.inode[i_index].direct[i]){
+        }
+
+        // Otherwise allocate a new block
+        else{
+        }
+    }
+
     return bytes_written;
 }
 
