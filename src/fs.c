@@ -60,31 +60,32 @@ void fs_debug(){
     for(int i = 1; i <= block.super.ninodeblocks; i++){
 
         // Read the block from disk to the block struct
-        disk_read(i, block.data);
+        union fs_block direct_block;
+        disk_read(i, direct_block.data);
 
         // For each inode in the block we just read...
         for(int j = 0; j < INODES_PER_BLOCK; j++){
 
             // Skip invalid inodes, we only care about the ones
             // that refer to actual files
-            if(!block.inode[j].isvalid) continue;
+            if(!direct_block.inode[j].isvalid) continue;
 
             // Regular inode debugging output
             printf("inode %d:\n", INODES_PER_BLOCK * (i-1) + j);
-            printf("    size: %d bytes\n", block.inode[j].size);
+            printf("    size: %d bytes\n", direct_block.inode[j].size);
             printf("    direct blocks: ");
 
             // Report each direct block pointer (the list is null terminated and
             // does not exceed POINTERS_PER_INODE in length)
-            for(int k = 0; k < POINTERS_PER_INODE && block.inode[j].direct[k]; k++)
-                printf("%d ", block.inode[j].direct[k]);
+            for(int k = 0; k < POINTERS_PER_INODE && direct_block.inode[j].direct[k]; k++)
+                printf("%d ", direct_block.inode[j].direct[k]);
             printf("\n");
 
             // If the inode has an indirect pointer, process the target indoe
-            if(!block.inode[j].indirect) continue;
+            if(!direct_block.inode[j].indirect) continue;
 
             // Report the indirect block info located within the inode
-            printf("    indirect block: %d\n", block.inode[j].indirect);
+            printf("    indirect block: %d\n", direct_block.inode[j].indirect);
             printf("    indirect data blocks: ");
 
             // Read in the indrect block and process it
@@ -107,8 +108,7 @@ void fs_debug(){
     }
 }
 
-int fs_mount()
-{
+int fs_mount(){
     printf("INFO: Mounting...\n");
     union fs_block block;
     disk_read(0, block.data);
