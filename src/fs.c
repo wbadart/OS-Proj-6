@@ -48,8 +48,7 @@ int fs_format()
         return 0;
     }
     //set aside 10% of blocks for inodes
-    int dsize = disk_size();
-    int nblocks = dsize / 4096;
+    int nblocks = disk_size();
     int ninodeblocks = DIVIDE(nblocks, 10);
     int ninodes = ninodeblocks * INODES_PER_BLOCK;
     //set appropriate superblock SUPER values
@@ -58,9 +57,18 @@ int fs_format()
     SUPER.ninodeblocks = ninodeblocks;
     SUPER.ninodes = ninodes;
     //destroy any data already present by setting all the inode isvalid bits to 0
-    union fs_block block;
-    int i = 1;
-    return 0;
+    for(int i = 1; i < SUPER.ninodeblocks + 1; i++){
+        //read an inode block
+        union fs_block inode_block;
+        disk_read(i, inode_block.data);
+        for(int j = 0; j < INODES_PER_BLOCK; j++){
+            //set all the inodes in that block to invalid
+            inode_block.inode[j].isvalid = 0;
+        }
+        //write block back to disk
+        disk_write(i, inode_block.data);
+    }
+    return 1;
 }
 
 void fs_debug(){
