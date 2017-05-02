@@ -14,7 +14,7 @@
 #define POINTERS_PER_BLOCK 1024
 
 #define DIVIDE(a, b) (a % b ? a / b + 1 : a / b)
-#define INODE_NUMBER(blockno, index) (INODES_PER_BLOCK * (blockno-1) + index)
+#define INODE_NUMBER(blockno, index) (INODES_PER_BLOCK * (blockno-1) + index+1)
 
 char *G_FREE_BLOCK_BITMAP;
 
