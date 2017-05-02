@@ -14,8 +14,9 @@
 #define POINTERS_PER_BLOCK 1024
 
 #define DIVIDE(a, b) (a % b ? a / b + 1 : a / b)
+#define INODE_NUMBER(blockno, index) (INODES_PER_BLOCK * (blockno-1) + index)
 
-int *G_FREE_BLOCK_BITMAP;
+char *G_FREE_BLOCK_BITMAP;
 
 struct fs_superblock {
     int magic;
@@ -91,7 +92,7 @@ void fs_debug(){
             if(!direct_block.inode[j].isvalid) continue;
 
             // Regular inode debugging output
-            printf("inode %d:\n", INODES_PER_BLOCK * (i-1) + j);
+            printf("inode %d:\n", INODE_NUMBER(i, j));
             printf("    size: %d bytes\n", direct_block.inode[j].size);
             printf("    direct blocks: ");
 
@@ -129,20 +130,53 @@ void fs_debug(){
 }
 
 int fs_mount(){
-    printf("INFO: Mounting...\n");
-    union fs_block block;
-    disk_read(0, block.data);
 
-    for(int i = 1; i <= block.super.ninodeblocks; i++){
+    // Get info from super block
+    union fs_block superblock;
+    disk_read(0, superblock.data);
+
+    // Check magic value to verify validitiy
+    if(superblock.super.magic != FS_MAGIC){
+        printf("ERROR: Invalid magic value 0x%x", superblock.super.magic);
+        return 0;
+    }
+
+    // Initialize and build free block bitmap
+    G_FREE_BLOCK_BITMAP = malloc(superblock.super.ninodes / sizeof(char));
+
+    // For each inode block...
+    for(int i = 1; i <= superblock.super.ninodeblocks; i++){
+
+        // Read in the inode block
+        union fs_block block;
         disk_read(i, block.data);
+
+        // For each inode in the block we just read...
         for(int j = 0; j < INODES_PER_BLOCK; j++){
-            if(block.inode[j].isvalid){
-                *G_FREE_BLOCK_BITMAP = *G_FREE_BLOCK_BITMAP | (1 << INODES_PER_BLOCK * (i-1) * j);
-            }
+
+            // Skip empty inodes
+            if(!block.inode[j].isvalid) continue;
+
+            // Calculate the target byte of the bitmap
+            // Should be floor(inode_number / sizeof(char))
+            int inode_number = INODE_NUMBER(i, j)
+              , target_byte  = inode_number / (sizeof(char) * sizeof(char))
+            // Calculate the index of the target bit [0-3]
+              , target_bit   = inode_number % sizeof(char);
+            // Perform the masking
+            G_FREE_BLOCK_BITMAP[target_byte] =
+                G_FREE_BLOCK_BITMAP[target_byte] | 1 << target_bit;
+
+            printf("INFO: Inode num [%d]\n", INODE_NUMBER(i, j));
+            printf("INFO: target_byte[%d]\n", target_byte);
+            printf("INFO: holds data [%04X]\n", G_FREE_BLOCK_BITMAP[target_byte]);
         }
     }
 
-    return 0;
+    // Prepare filesystem for use
+
+    // Return 1 (success code; failure is 0)
+    return 1;
 }
 
 int fs_create()
