@@ -13,6 +13,9 @@
 #define POINTERS_PER_INODE 5
 #define POINTERS_PER_BLOCK 1024
 
+#define DIVIDE(a, b) (a % b ? a / b + 1 : a / b)
+
+
 int *G_FREE_BLOCK_BITMAP;
 
 struct fs_superblock {
@@ -36,8 +39,28 @@ union fs_block {
     char data[DISK_BLOCK_SIZE];
 };
 
+struct fs_superblock SUPER = {0x00000000, 0, 0, 0};
+
 int fs_format()
 {
+    //check if disk is already mounted
+    if(SUPER.magic == FS_MAGIC){
+        printf("Cannot format a disk that is already mounted\n");
+        return 0;
+    }
+    //set aside 10% of blocks for inodes
+    int dsize = disk_size();
+    int nblocks = dsize / 4096;
+    int ninodeblocks = DIVIDE(nblocks, 10);
+    int ninodes = ninodeblocks * INODES_PER_BLOCK;
+    //set appropriate superblock SUPER values
+    SUPER.magic = FS_MAGIC;
+    SUPER.nblocks = nblocks;
+    SUPER.ninodeblocks = ninodeblocks;
+    SUPER.ninodes = ninodes;
+    //destroy any data already present by setting all the inode isvalid bits to 0
+    union fs_block block;
+    int i = 1;
     return 0;
 }
 
