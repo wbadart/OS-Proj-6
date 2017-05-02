@@ -150,7 +150,7 @@ int fs_mount(){
     }
 
     // Initialize and build free block bitmap
-    G_FREE_BLOCK_BITMAP = malloc(superblock.super.ninodes / 8);
+    G_FREE_BLOCK_BITMAP = malloc(superblock.super.nblocks);
 
     // For each inode block...
     for(int i = 1; i <= superblock.super.ninodeblocks; i++){
@@ -165,21 +165,26 @@ int fs_mount(){
             // Skip empty inodes
             if(!block.inode[j].isvalid) continue;
 
-            // Calculate the target byte of the bitmap
-            // Should be floor(inode_number / sizeof(char))
-            int inode_number = INODE_NUMBER(i, j);
+            // Mark each used block as such in the bitmap
+            for(int k = 0; k < POINTERS_PER_INODE && block.inode[j].direct[k]; k++)
+                G_FREE_BLOCK_BITMAP[block.inode[j].direct[k]] = 1;
 
-            // Calculate the index of the target bit [0-3]
-            int target_byte  = inode_number / 8
-              , target_bit   = inode_number % 8;
+            // Record any blocks in use via indirection (else continue)
+            if(!block.inode[j].indirect) continue;
 
-            // Perform the masking
-            G_FREE_BLOCK_BITMAP[target_byte] =
-                G_FREE_BLOCK_BITMAP[target_byte] | 1 << target_bit;
+            union fs_block indirect_block;
+            disk_read(block.inode[j].indirect, indirect_block.data);
 
-            /* printf("INFO: Inode num [%d]\n", INODE_NUMBER(i, j)); */
-            /* printf("INFO: target_byte[%d] has %02x\n" */
-            /*         , target_byte, G_FREE_BLOCK_BITMAP[target_byte]); */
+            // For each inode in the indirect block...
+            for(int k = 0; k < INODES_PER_BLOCK; k++){
+
+                // Skip empty inodes
+                if(!indirect_block.inode[k].isvalid) continue;
+
+                // Mark each used block as such in the bitmap
+                for(int l = 0; l < POINTERS_PER_INODE && indirect_block.inode[k].direct[l]; l++)
+                    G_FREE_BLOCK_BITMAP[indirect_block.inode[k].direct[l]] = 1;
+            }
         }
     }
 
