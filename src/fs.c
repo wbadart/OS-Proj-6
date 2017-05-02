@@ -264,91 +264,64 @@ int fs_delete( int inumber ){
         return 0;
     }
 
-    // Nuke the metadata
-    block.inode[inode_index].isvalid = 0;
-    block.inode[inode_index].size    = 0;
-
-    // Nuke the direct blocks
+    // Update values in free block map, check direct pointers
     for(int i = 0; i < POINTERS_PER_INODE && block.inode[inode_index].direct[i]; i++){
         G_FREE_BLOCK_BITMAP[block.inode[inode_index].direct[i]] = 0;
         block.inode[inode_index].direct[i] = 0;
     }
 
-    // Nuke the indirect data
-    if(block.inode[inode_index].indirect){
+    // Check indirect pointer
+    union fs_block indirect_block;
+    int indirect_block_num = block.inode[inode_index].indirect;
 
-        // Read in the indirect block
-        union fs_block indirect_block;
-        disk_read(block.inode[inode_index].indirect, indirect_block.data);
+    // If inode has indirect pointer, update those blocks in bitmap too
+    if(indirect_block_num){
 
-        // For each inode in the indirect block...
-        for(int i = 0; i < INODES_PER_BLOCK; i++){
+        // Read indirect block
+        disk_read(indirect_block_num, indirect_block.data);
 
-            // Skip invalids, they're already nuked
-            if(!indirect_block.inode[i].isvalid) continue;
-
-            // Nuke the metadata
-            indirect_block.inode[i].isvalid = 0;
-            indirect_block.inode[i].size    = 0;
-
-            // Nuke the direct blocks
-            for(int j = 0; j < POINTERS_PER_INODE; j++){
-                G_FREE_BLOCK_BITMAP[indirect_block.inode[i].direct[j]] = 0;
-                indirect_block.inode[i].direct[j] = 0;
-            }
-
-            // Write the indirect block back to disk
-            disk_write(block.inode[inode_index].indirect, indirect_block.data);
+        for(int i = 0; i < POINTERS_PER_BLOCK; i++){
+            int b = indirect_block.pointers[i];
+            if(b)
+                G_FREE_BLOCK_BITMAP[b] = 0;
         }
     }
+
+    // Nuke the metadata
+    block.inode[inode_index].isvalid = 0;
+    block.inode[inode_index].size    = 0;
+
+    // Nuke the indirect data
+    /* if(block.inode[inode_index].indirect){ */
+
+    /*     // Read in the indirect block */
+    /*     union fs_block indirect_block; */
+    /*     disk_read(block.inode[inode_index].indirect, indirect_block.data); */
+
+    /*     // For each inode in the indirect block... */
+    /*     for(int i = 0; i < INODES_PER_BLOCK; i++){ */
+
+    /*         // Skip invalids, they're already nuked */
+    /*         if(!indirect_block.inode[i].isvalid) continue; */
+
+    /*         // Nuke the metadata */
+    /*         indirect_block.inode[i].isvalid = 0; */
+    /*         indirect_block.inode[i].size    = 0; */
+
+    /*         // Nuke the direct blocks */
+    /*         for(int j = 0; j < POINTERS_PER_INODE; j++){ */
+    /*             G_FREE_BLOCK_BITMAP[indirect_block.inode[i].direct[j]] = 0; */
+    /*             indirect_block.inode[i].direct[j] = 0; */
+    /*         } */
+
+    /*         // Write the indirect block back to disk */
+    /*         disk_write(block.inode[inode_index].indirect, indirect_block.data); */
+    /*     } */
+    /* } */
 
     // Save changes to disk
     disk_write(blockno, block.data);
     return 1;
-
-
-    //figure out what block the inode is on and read that block
-    /* int block_num = inumber / INODES_PER_BLOCK + 1; */
-    /* union fs_block block; */
-    /* disk_read(block_num, block.data); */
-    /* //figure out index of inode on that block */
-    /* int inode_index = inumber % INODES_PER_BLOCK; */
-    /* printf("inode %d is the %dth inode on the %dth block\n", inumber, inode_index, block_num); */
-    /* if(!block.inode[inode_index].isvalid){ */
-    /*     printf("inode %d is invalid, cannot be deleted\n", inumber); */
-    /*     return 0; */
-    /* } */
-    /* //delete this return statement once bitmap is done correctly */
-    /* return 1; */
-    /* //update values in free block map */
-    /* //check direct pointers */
-    /* for(int i = 0; i < POINTERS_PER_INODE; i++){ */
-    /*     int b = block.inode[inode_index].direct[i]; */
-    /*     if(b) */
-    /*         G_FREE_BLOCK_BITMAP[b] = 0; */
-    /* } */
-    /* //check indirect pointer */
-    /* union fs_block indirect_block; */
-    /* int indirect_block_num = block.inode[inode_index].indirect; */
-    /* disk_read(indirect_block_num, indirect_block.data); */
-    /* for(int i = 0; i < POINTERS_PER_BLOCK; i++){ */
-    /*     int b = indirect_block.pointers[i]; */
-    /*     if(b) */
-    /*         G_FREE_BLOCK_BITMAP[b] = 0; */
-    /* } */
-
-    /* //set all the values of the inode block to 0 */
-    /* block.inode[inode_index].isvalid = 0; */
-    /* for(int i = 0; i < POINTERS_PER_INODE; i++) */
-    /*     block.inode[inode_index].direct[i] = 0; */
-    /* block.inode[inode_index].indirect = 0; */
-    /* //set all the values of the indirect block to 0 */
-    /* for(int i = 0; i < POINTERS_PER_BLOCK; i++) */
-    /*     indirect_block.pointers[i] = 0; */
-    /* //write both blocks back */
-    /* disk_write(indirect_block_num, indirect_block.data); */
-    /* disk_write(block_num, block.data); */
-    /* return 1; */
 }
 
 int fs_getsize( int inumber )
