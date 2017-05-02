@@ -227,7 +227,52 @@ int fs_create(){
 
 int fs_delete( int inumber )
 {
-    return 0;
+    if(inumber > SUPER.ninodes){
+        printf("There are not that many inodes\n");
+        return 0;
+    }
+    //figure out what block the inode is on and read that block
+    int block_num = inumber / INODES_PER_BLOCK + 1;
+    union fs_block block;
+    disk_read(block_num, block.data);
+    //figure out index of inode on that block
+    int inode_index = inumber % INODES_PER_BLOCK;
+    printf("inode %d is the %dth inode on the %dth block\n", inumber, inode_index, block_num);
+    if(!block.inode[inode_index].isvalid){
+        printf("Inode is invalid, cannot be deleted\n");
+        return 0;
+    }
+    //delete this return statement once bitmap is done correctly
+    return 1;
+    //update values in free block map
+    //check direct pointers
+    for(int i = 0; i < POINTERS_PER_INODE; i++){
+        int b = block.inode[inode_index].direct[i];
+        if(b)
+            G_FREE_BLOCK_BITMAP[b] = 0;
+    }
+    //check indirect pointer
+    union fs_block indirect_block;
+    int indirect_block_num = block.inode[inode_index].indirect;
+    disk_read(indirect_block_num, indirect_block.data);
+    for(int i = 0; i < POINTERS_PER_BLOCK; i++){
+        int b = indirect_block.pointers[i];
+        if(b)
+            G_FREE_BLOCK_BITMAP[b] = 0;
+    }
+
+    //set all the values of the inode block to 0
+    block.inode[inode_index].isvalid = 0;
+    for(int i = 0; i < POINTERS_PER_INODE; i++)
+        block.inode[inode_index].direct[i] = 0;
+    block.inode[inode_index].indirect = 0;
+    //set all the values of the indirect block to 0
+    for(int i = 0; i < POINTERS_PER_BLOCK; i++)
+        indirect_block.pointers[i] = 0;
+    //write both blocks back
+    disk_write(indirect_block_num, indirect_block.data);
+    disk_write(block_num, block.data);
+    return 1;
 }
 
 int fs_getsize( int inumber )
