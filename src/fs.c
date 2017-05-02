@@ -16,6 +16,7 @@
 #define DIVIDE(a, b) (a % b ? a / b + 1 : a / b)
 #define INODE_NUMBER(blockno, index) (INODES_PER_BLOCK * (blockno-1) + index+1)
 
+int BEEN_MOUNTED = 0;
 char *G_FREE_BLOCK_BITMAP;
 
 struct fs_superblock {
@@ -44,7 +45,7 @@ struct fs_superblock SUPER = {0x00000000, 0, 0, 0};
 int fs_format()
 {
     //check if disk is already mounted
-    if(SUPER.magic == FS_MAGIC){
+    if(BEEN_MOUNTED){
         printf("Cannot format a disk that is already mounted\n");
         return 0;
     }
@@ -138,7 +139,8 @@ void fs_debug(){
 }
 
 int fs_mount(){
-
+    // set BEEN_MOUNTED to true
+    BEEN_MOUNTED = 1;
     // Get info from super block
     union fs_block superblock;
     disk_read(0, superblock.data);
@@ -244,7 +246,7 @@ int fs_delete( int inumber )
     int inode_index = inumber % INODES_PER_BLOCK;
     printf("inode %d is the %dth inode on the %dth block\n", inumber, inode_index, block_num);
     if(!block.inode[inode_index].isvalid){
-        printf("Inode is invalid, cannot be deleted\n");
+        printf("inode %d is invalid, cannot be deleted\n", inumber);
         return 0;
     }
     //delete this return statement once bitmap is done correctly
@@ -282,7 +284,15 @@ int fs_delete( int inumber )
 
 int fs_getsize( int inumber )
 {
-    return -1;
+    int block_num = inumber / INODES_PER_BLOCK + 1;
+    union fs_block block;
+    disk_read(block_num, block.data);
+    int inode_index = inumber % INODES_PER_BLOCK;
+    if(!block.inode[inode_index].isvalid){
+        printf("inode %d is invalid\n", inumber);
+        return -1;
+    } else
+        return block.inode[inode_index].size;
 }
 
 int fs_read( int inumber, char *data, int length, int offset )
