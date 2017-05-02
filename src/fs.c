@@ -330,5 +330,9 @@ int fs_write( int inumber, const char *data, int length, int offset ){
         return 0;
     }
 
-    return 0;
+    // Initialize helper data
+    int bytes_written = 0;
+
+    return bytes_written;
 }
+
