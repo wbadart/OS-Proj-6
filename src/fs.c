@@ -282,34 +282,6 @@ int fs_delete( int inumber ){
     block.inode[inode_index].isvalid = 0;
     block.inode[inode_index].size    = 0;
 
-    // Nuke the indirect data
-    /* if(block.inode[inode_index].indirect){ */
-
-    /*     // Read in the indirect block */
-    /*     union fs_block indirect_block; */
-    /*     disk_read(block.inode[inode_index].indirect, indirect_block.data); */
-
-    /*     // For each inode in the indirect block... */
-    /*     for(int i = 0; i < INODES_PER_BLOCK; i++){ */
-
-    /*         // Skip invalids, they're already nuked */
-    /*         if(!indirect_block.inode[i].isvalid) continue; */
-
-    /*         // Nuke the metadata */
-    /*         indirect_block.inode[i].isvalid = 0; */
-    /*         indirect_block.inode[i].size    = 0; */
-
-    /*         // Nuke the direct blocks */
-    /*         for(int j = 0; j < POINTERS_PER_INODE; j++){ */
-    /*             G_FREE_BLOCK_BITMAP[indirect_block.inode[i].direct[j]] = 0; */
-    /*             indirect_block.inode[i].direct[j] = 0; */
-    /*         } */
-
-    /*         // Write the indirect block back to disk */
-    /*         disk_write(block.inode[inode_index].indirect, indirect_block.data); */
-    /*     } */
-    /* } */
-
     // Save changes to disk
     disk_write(blockno, block.data);
     return 1;
