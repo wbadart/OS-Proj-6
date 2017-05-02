@@ -187,8 +187,41 @@ int fs_mount(){
     return 1;
 }
 
-int fs_create()
-{
+int fs_create(){
+
+    // The objective here is to find an open (invalid) inode, initialize
+    // it for use, and then return its inumber
+
+    union fs_block superblock;
+    disk_read(0, superblock.data);
+
+    // For each inode block...
+    for(int i = 1; i <= superblock.super.ninodeblocks; i++){
+
+        union fs_block block;
+        disk_read(i, block.data);
+
+        // For each inode in the block...
+        for(int j = 0; j < INODES_PER_BLOCK; j++){
+
+            // Skip VALID inodes
+            if(block.inode[j].isvalid) continue;
+
+            // Initialize the found inode
+            block.inode[j].isvalid = 1;
+            block.inode[j].size    = 0;
+            block.inode[j].indirect = 0;
+            for(int k = 0; k < POINTERS_PER_INODE; k++)
+                block.inode[j].direct[k] = 0;
+
+            // Write the changes to disk
+            disk_write(i, block.data);
+
+            // Calculate and return the inumber
+            return INODE_NUMBER(i, j);
+        }
+    }
+
     return 0;
 }
 
