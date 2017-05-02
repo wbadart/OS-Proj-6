@@ -81,6 +81,7 @@ void fs_debug(){
 
     // Debugging output for super block
     printf("superblock:\n");
+    printf("    magic number is %svalid\n", (block.super.magic == FS_MAGIC ? "" : "in"));
     printf("    %d blocks\n",block.super.nblocks);
     printf("    %d inode blocks\n",block.super.ninodeblocks);
     printf("    %d inodes\n",block.super.ninodes);
@@ -122,16 +123,10 @@ void fs_debug(){
             union fs_block indirect_block;
             disk_read(block.inode[j].indirect, indirect_block.data);
 
-            // For each inode in the indirect block...
-            for(int l = 0; l < INODES_PER_BLOCK; l++){
+            // Report the direct pointers in the inode
+            for(int m = 0; m < POINTERS_PER_INODE && indirect_block.pointers[m]; m++)
+                if(indirect_block.pointers[m] > 0) printf("%d ", indirect_block.pointers[m]);
 
-                // Ignore invalid blocks
-                if(!indirect_block.inode[l].isvalid) continue;
-
-                // Report the direct pointers in the inode
-                for(int m = 0; m < POINTERS_PER_INODE && indirect_block.inode[l].direct[m]; m++)
-                    printf("%d ", indirect_block.inode[l].direct[m]);
-            }
             // Print the newline after the full inode report
             printf("\n");
         }
@@ -178,16 +173,11 @@ int fs_mount(){
             union fs_block indirect_block;
             disk_read(block.inode[j].indirect, indirect_block.data);
 
-            // For each inode in the indirect block...
-            for(int k = 0; k < INODES_PER_BLOCK; k++){
+            // Update bitmap with indirectly referenced blocks
+            for(int k = 0; k < POINTERS_PER_BLOCK; k++)
+                if(indirect_block.pointers[k])
+                    G_FREE_BLOCK_BITMAP[indirect_block.pointers[k]] = 1;
 
-                // Skip empty inodes
-                if(!indirect_block.inode[k].isvalid) continue;
-
-                // Mark each used block as such in the bitmap
-                for(int l = 0; l < POINTERS_PER_INODE && indirect_block.inode[k].direct[l]; l++)
-                    G_FREE_BLOCK_BITMAP[indirect_block.inode[k].direct[l]] = 1;
-            }
         }
     }
 
@@ -213,7 +203,8 @@ int fs_create(){
         for(int j = 0; j < INODES_PER_BLOCK; j++){
 
             // Skip VALID inodes
-            if(block.inode[j].isvalid) continue;
+            if(block.inode[j].isvalid || !INODE_NUMBER(i, j)) continue;
+            printf("INFO: Found ivalid invode (%d, %d)=%d\n", i, j, INODE_NUMBER(i, j));
 
             // Initialize the found inode
             block.inode[j].isvalid  = 1;
