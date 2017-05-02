@@ -150,7 +150,7 @@ int fs_mount(){
     }
 
     // Initialize and build free block bitmap
-    G_FREE_BLOCK_BITMAP = malloc(superblock.super.ninodes / sizeof(char));
+    G_FREE_BLOCK_BITMAP = malloc(superblock.super.ninodes / 8);
 
     // For each inode block...
     for(int i = 1; i <= superblock.super.ninodeblocks; i++){
@@ -167,17 +167,19 @@ int fs_mount(){
 
             // Calculate the target byte of the bitmap
             // Should be floor(inode_number / sizeof(char))
-            int inode_number = INODE_NUMBER(i, j)
-              , target_byte  = inode_number / (sizeof(char) * sizeof(char))
+            int inode_number = INODE_NUMBER(i, j);
+
             // Calculate the index of the target bit [0-3]
-              , target_bit   = inode_number % sizeof(char);
+            int target_byte  = inode_number / 8
+              , target_bit   = inode_number % 8;
+
             // Perform the masking
             G_FREE_BLOCK_BITMAP[target_byte] =
                 G_FREE_BLOCK_BITMAP[target_byte] | 1 << target_bit;
 
-            printf("INFO: Inode num [%d]\n", INODE_NUMBER(i, j));
-            printf("INFO: target_byte[%d]\n", target_byte);
-            printf("INFO: holds data [%04X]\n", G_FREE_BLOCK_BITMAP[target_byte]);
+            /* printf("INFO: Inode num [%d]\n", INODE_NUMBER(i, j)); */
+            /* printf("INFO: target_byte[%d] has %02x\n" */
+            /*         , target_byte, G_FREE_BLOCK_BITMAP[target_byte]); */
         }
     }
 
