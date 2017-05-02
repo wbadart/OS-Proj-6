@@ -98,7 +98,7 @@ void fs_debug(){
                 if(!indirect_block.inode[l].isvalid) continue;
 
                 // Report the direct pointers in the inode
-                for(int m = 0; m < POINTERS_PER_INODE /* && indirect_block.inode[l].direct[m]*/; m++)
+                for(int m = 0; m < POINTERS_PER_INODE && indirect_block.inode[l].direct[m]; m++)
                     printf("%d ", indirect_block.inode[l].direct[m]);
             }
             // Print the newline after the full inode report
