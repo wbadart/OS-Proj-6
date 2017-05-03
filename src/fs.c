@@ -313,8 +313,7 @@ int fs_getsize( int inumber )
         return block.inode[inode_index].size;
 }
 
-int fs_read( int inumber, char *data, int length, int offset )
-{
+int fs_read( int inumber, char *data, int length, int offset ){
     // get inode info
     int block_num = inumber / INODES_PER_BLOCK + 1;
     union fs_block block;
@@ -408,14 +407,11 @@ int fs_write( int inumber, const char *data, int length, int offset ){
     }
 
     // Initialize helper data
-    int bytes_written = 0;
-
-    // Calculate the number of blocks needed
-    int blocks_needed = length / DISK_BLOCK_SIZE;
+    int bytes_written = 0
+      , start_block   = offset / DISK_BLOCK_SIZE;
 
     // Write them bytes
-    int i;
-    for(i = 0; i < blocks_needed; i++){
+    for(int i = start_block; i < POINTERS_PER_INODE; i++){
 
         // Find out if inode has direct block ready
         if(block.inode[i_index].direct[i]){
@@ -424,21 +420,102 @@ int fs_write( int inumber, const char *data, int length, int offset ){
             disk_write(block.inode[i_index].direct[i], data + bytes_written);
             G_FREE_BLOCK_BITMAP[block.inode[i_index].direct[i]] = 1;
             bytes_written += DISK_BLOCK_SIZE;
+            block.inode[i_index].size += DISK_BLOCK_SIZE;
+            disk_write(blockno, block.data);
+
+            if(bytes_written >= length) return bytes_written;
         }
 
         // Otherwise allocate a new block
-        else{
+        // If there's room for another direct pointer...
+        else if(i < POINTERS_PER_INODE){
 
-            // If there's room for another direct pointer...
-            if(i < POINTERS_PER_INODE){
+            // Locate the next free block
+            int target_block;
+            for(target_block = 1; target_block < superblock.super.nblocks; target_block++)
+                if(!G_FREE_BLOCK_BITMAP[target_block]) break;
+            if(target_block == superblock.super.nblocks){
+                printf("ERROR: No free block found.\n");
+                return 0;
             }
 
-            // Otherwise, do some indirection
-            else{
-            }
+            // Update the indode and the bitmap
+            block.inode[i_index].direct[i] = target_block;
+            block.inode[i_index].size += DISK_BLOCK_SIZE;
+            disk_write(blockno, block.data);
+            G_FREE_BLOCK_BITMAP[target_block] = 1;
+
+            // Write the data
+            disk_write(target_block, data + bytes_written);
+            bytes_written += DISK_BLOCK_SIZE;
         }
     }
 
+    // If there's still data to be written, use indirection, else done
+    if(bytes_written >= length) return bytes_written;
+
+    // If the inode's indirect pointer isn't set, find a block for it
+    if(!block.inode[i_index].indirect){
+        int target_block;
+        for(target_block = 1; target_block < superblock.super.nblocks; target_block++)
+            if(!G_FREE_BLOCK_BITMAP[target_block]) break;
+        if(target_block == superblock.super.nblocks){
+            printf("ERROR: No room to allocate indirection block\n");
+            return 0;
+        }
+
+        // If a free block was found, update the inode and save changes
+        block.inode[i_index].indirect = target_block;
+        disk_write(blockno, block.data);
+    }
+
+    // Read in the indirect block
+    union fs_block indirect_block;
+    disk_read(block.inode[i_index].indirect, indirect_block.data);
+
+    for(int i = start_block - 5; i < POINTERS_PER_BLOCK; i++){
+
+        // If the indrect data block has already been allocated...
+        if(indirect_block.pointers[i]){
+
+            // Update the bitmap
+            G_FREE_BLOCK_BITMAP[indirect_block.pointers[i]] = 1;
+            block.inode[i_index].size += DISK_BLOCK_SIZE;
+            disk_write(blockno, block.data);
+
+            // Write the data, update bytes written
+            disk_write(indirect_block.pointers[i], data + bytes_written);
+            bytes_written += DISK_BLOCK_SIZE;
+            if(bytes_written >= length) return bytes_written;
+        }
+
+        // Otherwise allocte a new block
+        else{
+
+            // Find the block
+            int target_block;
+            for(target_block = 1; target_block < superblock.super.nblocks; target_block++)
+                if(!G_FREE_BLOCK_BITMAP[target_block]) break;
+            if(target_block == superblock.super.nblocks){
+                printf("ERROR: No room to allocate indirect data block.\n");
+                return 0;
+            }
+
+            // Update the indrect pointer list, save changes, update bitmap
+            indirect_block.pointers[i] = target_block;
+            disk_write(block.inode[i_index].indirect, indirect_block.data);
+            G_FREE_BLOCK_BITMAP[target_block] = 1;
+
+            block.inode[i_index].size += DISK_BLOCK_SIZE;
+            disk_write(blockno, block.data);
+
+            // Write the raw data and update bytes written
+            disk_write(target_block, data + bytes_written);
+            if(bytes_written >= length) return bytes_written;
+        }
+    }
+
+    // Now we should be done
     return bytes_written;
 }
 
