@@ -154,39 +154,40 @@ int fs_mount(){
     G_FREE_BLOCK_BITMAP = malloc(8 * superblock.super.nblocks);
 
     // For each inode block...
-    int i;
-    for(i = 1; i <= superblock.super.ninodeblocks; i++){
+    for(int i = 1; i <= superblock.super.ninodeblocks; i++){
 
         // Read in the inode block
         union fs_block block;
         disk_read(i, block.data);
 
+        // Mark all inode blocks as used
+        G_FREE_BLOCK_BITMAP[i] = 1;
+
         // For each inode in the block we just read...
-        int j;
-        for(j = 0; j < INODES_PER_BLOCK; j++){
+        for(int j = 0; j < INODES_PER_BLOCK; j++){
 
             // Skip empty inodes
             if(!block.inode[j].isvalid) continue;
 
             // Mark each used block as such in the bitmap
-            int k;
-            for(k = 0; k < POINTERS_PER_INODE && block.inode[j].direct[k]; k++)
+            for(int k = 0; k < POINTERS_PER_INODE && block.inode[j].direct[k]; k++)
                 G_FREE_BLOCK_BITMAP[block.inode[j].direct[k]] = 1;
 
             // Record any blocks in use via indirection (else continue)
             if(!block.inode[j].indirect) continue;
 
+            // Mark the block of indirect pointers as used
+            G_FREE_BLOCK_BITMAP[block.inode[j].indirect] = 1;
+
             union fs_block indirect_block;
             disk_read(block.inode[j].indirect, indirect_block.data);
 
             // Update bitmap with indirectly referenced blocks
-            for(k = 0; k < POINTERS_PER_BLOCK; k++)
+            for(int k = 0; k < POINTERS_PER_BLOCK; k++)
                 if(indirect_block.pointers[k])
                     G_FREE_BLOCK_BITMAP[indirect_block.pointers[k]] = 1;
 
         }
-
-        if(i <= superblock.super.ninodeblocks) G_FREE_BLOCK_BITMAP[i] = 1;
     }
 
     // Return 1 (success code; failure is 0)
