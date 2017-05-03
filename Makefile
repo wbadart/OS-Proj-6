@@ -9,9 +9,9 @@
 ##
 
 CXX	      = /usr/bin/gcc
-CXX_FLAGS = -Wall -ggdb
+CXX_FLAGS = -Wall -ggdb -std=gnu11
 
-LD		  = gcc
+LD		  = /usr/bin/gcc
 LD_FLAGS  =
 
 OUT  = simplefs
