@@ -253,7 +253,6 @@ int fs_delete( int inumber ){
 
     // Calculate target block
     int blockno = inumber / INODES_PER_BLOCK + 1;
-    printf("target block is %d\n", blockno);
 
     // Read in the target block
     union fs_block block;
@@ -261,7 +260,6 @@ int fs_delete( int inumber ){
 
     // Index into the block
     int inode_index = inumber % INODES_PER_BLOCK;
-    printf("inode %d is %dth inode on block %d\n", inumber, inode_index, blockno);
 
     // Verify inode validity (can't delete an invalid inode)
     if(!block.inode[inode_index].isvalid){
@@ -272,12 +270,9 @@ int fs_delete( int inumber ){
     // Update values in free block map, check direct pointers
     for(int i = 0; i < POINTERS_PER_INODE; i++){
         int b = block.inode[inode_index].direct[i];
-        printf("direct %d is %d\n", i, b);
         if(b > 0){
-            printf("update bitmap at index %d\n", b);
             G_FREE_BLOCK_BITMAP[b] = 0;
             block.inode[inode_index].direct[i] = 0;
-            printf("setting direct %d to 0", i);
         }
     }
 
@@ -286,8 +281,6 @@ int fs_delete( int inumber ){
     int indirect_block_num = block.inode[inode_index].indirect;
 
     // If inode has indirect pointer, update those blocks in bitmap too
-    printf("indirect pointer is %d\n", indirect_block_num);
-
     if(indirect_block_num){
 
         // Read indirect block
@@ -341,9 +334,8 @@ int fs_read( int inumber, char *data, int length, int offset ){
     int startblock = offset / 4096;
     //printf("offset is %d so start reading at %d pointer\n", offset, startblock);
     //while(bytesread < length){
-        int i;
         // start reading from direct pointers
-        for(i = startblock; i < POINTERS_PER_INODE; i++){
+        for(int i = startblock; i < POINTERS_PER_INODE; i++){
             int b = block.inode[inode_index].direct[i];
             //printf("direct pointer %d points to %d\n", i, b);
             if(b){
@@ -370,7 +362,7 @@ int fs_read( int inumber, char *data, int length, int offset ){
             union fs_block indirect_block;
             // read indirect block
             disk_read(indirect_block_num, indirect_block.data);
-            for(i = startblock - 5; i < POINTERS_PER_BLOCK; i++){
+            for(int i = startblock - 5; i < POINTERS_PER_BLOCK; i++){
                 int b = indirect_block.pointers[i];
                 //printf("indirect pointer %d points to %d\n", i, b);
                 if(b > 0){
