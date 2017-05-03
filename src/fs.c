@@ -369,7 +369,62 @@ int fs_read( int inumber, char *data, int length, int offset )
     return bytesread;
 }
 
-int fs_write( int inumber, const char *data, int length, int offset )
-{
-    return 0;
+int fs_write( int inumber, const char *data, int length, int offset ){
+
+    // Get the super block for some sanity checks
+    union fs_block superblock;;
+    disk_read(0, superblock.data);
+
+    // Perform checks on passed inumber
+    if(inumber <= 0 || inumber > superblock.super.ninodes){
+        printf("ERROR: inumber '%d' out of range.\n", inumber);
+        return 0;
+    }
+
+    // Get the block and index to get the inode itself
+    int blockno = inumber / INODES_PER_BLOCK + 1
+      , i_index = inumber % INODES_PER_BLOCK;
+
+    union fs_block block;
+    disk_read(blockno, block.data);
+
+    // More sanity checks
+    if(!block.inode[i_index].isvalid){
+        printf("ERROR: Inode #%d is invalid!\n", inumber);
+        return 0;
+    }
+
+    // Initialize helper data
+    int bytes_written = 0;
+
+    // Calculate the number of blocks needed
+    int blocks_needed = length / DISK_BLOCK_SIZE;
+
+    // Write them bytes
+    for(int i = 0; i < blocks_needed; i++){
+
+        // Find out if inode has direct block ready
+        if(block.inode[i_index].direct[i]){
+
+            // Write 4kb at a time
+            disk_write(block.inode[i_index].direct[i], data + bytes_written);
+            G_FREE_BLOCK_BITMAP[block.inode[i_index].direct[i]] = 1;
+            bytes_written += DISK_BLOCK_SIZE;
+        }
+
+        // Otherwise allocate a new block
+        else{
+
+            // If there's room for another direct pointer...
+            if(i < POINTERS_PER_INODE){
+            }
+
+            // Otherwise, do some indirection
+            else{
+            }
+        }
+    }
+
+    return bytes_written;
 }
+
