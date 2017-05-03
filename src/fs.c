@@ -325,7 +325,7 @@ int fs_read( int inumber, char *data, int length, int offset )
         printf("inode %d is invalid\n", inumber);
         return 0;
     }
-    printf("inode %d is valid\n", inumber);
+    //printf("inode %d is valid\n", inumber);
     int bytesread = 0;
     int startblock = offset / 4096;
     //printf("offset is %d so start reading at %d pointer\n", offset, startblock);
@@ -345,7 +345,7 @@ int fs_read( int inumber, char *data, int length, int offset )
                 //printf("copied %d bytes\n", numbytes);
                 // increment bytes read
                 bytesread += numbytes;
-                //printf("read %d out of %d bytes\n", bytesread, length);
+                //printf("directly read %d out of %d bytes\n", bytesread, length);
                 if(bytesread >= length)
                     return bytesread;
             }
@@ -359,7 +359,7 @@ int fs_read( int inumber, char *data, int length, int offset )
             union fs_block indirect_block;
             // read indirect block
             disk_read(indirect_block_num, indirect_block.data);
-            for(i = 0; i < POINTERS_PER_BLOCK; i++){
+            for(i = startblock - 5; i < POINTERS_PER_BLOCK; i++){
                 int b = indirect_block.pointers[i];
                 //printf("indirect pointer %d points to %d\n", i, b);
                 if(b > 0){
@@ -372,6 +372,7 @@ int fs_read( int inumber, char *data, int length, int offset )
                     memcpy(data + bytesread, data_block.data, numbytes);
                     // increment bytes read
                     bytesread += numbytes;
+                    //printf("indirectly read %d out of %d bytes\n", bytesread, length);
                     if(bytesread >= length)
                         return bytesread;
                 }
