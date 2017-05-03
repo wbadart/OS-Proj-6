@@ -475,9 +475,10 @@ int fs_write( int inumber, const char *data, int length, int offset ){
     for(int i = start_block - 5; i < POINTERS_PER_BLOCK; i++){
 
         // If the indrect data block has already been allocated...
-        if(indirect_block.pointers[i]){
+        if(indirect_block.pointers[i] > 0 && indirect_block.pointers[i] < superblock.super.nblocks){
 
             // Update the bitmap
+            printf("INFO: Accessing global bitmap at index %d\n", indirect_block.pointers[i]);
             G_FREE_BLOCK_BITMAP[indirect_block.pointers[i]] = 1;
             block.inode[i_index].size += DISK_BLOCK_SIZE;
             disk_write(blockno, block.data);
@@ -522,7 +523,7 @@ int next_free_block(){
     disk_read(0, superblock.data);
 
     // Scan the bitmap for an opening
-    for(int i = 1; i <= superblock.super.nblocks; i++)
+    for(int i = 1; i < superblock.super.nblocks; i++)
         if(!G_FREE_BLOCK_BITMAP[i]) return i;
     printf("ERROR: No free blocks.\n");
     return 0;
