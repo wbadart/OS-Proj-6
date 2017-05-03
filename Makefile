@@ -9,7 +9,7 @@
 ##
 
 CXX	      = /usr/bin/gcc
-CXX_FLAGS = -Wall -ggdb -std=gnu11
+CXX_FLAGS = -Wall -ggdb -std=gnu99
 
 LD		  = /usr/bin/gcc
 LD_FLAGS  =
@@ -27,7 +27,10 @@ clean:
 	rm -f $(OUT) $(OBJS)
 
 reset-images:
-	curl https://www3.nd.edu/~dthain/courses/cse30341/spring2017/project6/image.5 -o data/image.5
-	curl https://www3.nd.edu/~dthain/courses/cse30341/spring2017/project6/image.20 -o data/image.20
-	curl https://www3.nd.edu/~dthain/courses/cse30341/spring2017/project6/image.200 -o data/image.200
+	@echo "Fetching image.5"
+	@curl https://www3.nd.edu/~dthain/courses/cse30341/spring2017/project6/image.5 -o data/image.5
+	@echo "Fetching image.20"
+	@curl https://www3.nd.edu/~dthain/courses/cse30341/spring2017/project6/image.20 -o data/image.20
+	@echo "Fetching image.200"
+	@curl https://www3.nd.edu/~dthain/courses/cse30341/spring2017/project6/image.200 -o data/image.200
 
