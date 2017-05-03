@@ -268,10 +268,12 @@ int fs_delete( int inumber ){
     }
 
     // Update values in free block map, check direct pointers
-    int i;
-    for(i = 0; i < POINTERS_PER_INODE && block.inode[inode_index].direct[i]; i++){
-        G_FREE_BLOCK_BITMAP[block.inode[inode_index].direct[i]] = 0;
-        block.inode[inode_index].direct[i] = 0;
+    for(int i = 0; i < POINTERS_PER_INODE; i++){
+        int b = block.inode[inode_index].direct[i];
+        if(b > 0){
+            G_FREE_BLOCK_BITMAP[b] = 0;
+            block.inode[inode_index].direct[i] = 0;
+        }
     }
 
     // Check indirect pointer
@@ -284,11 +286,14 @@ int fs_delete( int inumber ){
         // Read indirect block
         disk_read(indirect_block_num, indirect_block.data);
 
-        for(i = 0; i < POINTERS_PER_BLOCK; i++){
+        for(int i = 0; i < POINTERS_PER_BLOCK; i++){
             int b = indirect_block.pointers[i];
-            if(b)
+            if(b){
                 G_FREE_BLOCK_BITMAP[b] = 0;
+                indirect_block.pointers[i] = 0;
+            }
         }
+        disk_write(indirect_block_num, indirect_block.data);
     }
 
     // Nuke the metadata
@@ -329,9 +334,8 @@ int fs_read( int inumber, char *data, int length, int offset ){
     int startblock = offset / 4096;
     //printf("offset is %d so start reading at %d pointer\n", offset, startblock);
     //while(bytesread < length){
-        int i;
         // start reading from direct pointers
-        for(i = startblock; i < POINTERS_PER_INODE; i++){
+        for(int i = startblock; i < POINTERS_PER_INODE; i++){
             int b = block.inode[inode_index].direct[i];
             //printf("direct pointer %d points to %d\n", i, b);
             if(b){
@@ -358,7 +362,7 @@ int fs_read( int inumber, char *data, int length, int offset ){
             union fs_block indirect_block;
             // read indirect block
             disk_read(indirect_block_num, indirect_block.data);
-            for(i = startblock - 5; i < POINTERS_PER_BLOCK; i++){
+            for(int i = startblock - 5; i < POINTERS_PER_BLOCK; i++){
                 int b = indirect_block.pointers[i];
                 //printf("indirect pointer %d points to %d\n", i, b);
                 if(b > 0){
