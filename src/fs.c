@@ -41,6 +41,7 @@ union fs_block {
 };
 
 struct fs_superblock SUPER = {0x00000000, 0, 0, 0};
+int next_free_block();
 
 int fs_format()
 {
@@ -97,8 +98,7 @@ void fs_debug(){
         disk_read(i, direct_block.data);
 
         // For each inode in the block we just read...
-        int j;
-        for(j = 0; j < INODES_PER_BLOCK; j++){
+        for(int j = 0; j < INODES_PER_BLOCK; j++){
 
             // Skip invalid inodes, we only care about the ones
             // that refer to actual files
@@ -111,9 +111,8 @@ void fs_debug(){
 
             // Report each direct block pointer (the list is null terminated and
             // does not exceed POINTERS_PER_INODE in length)
-            int k;
-            for(k = 0; k < POINTERS_PER_INODE && direct_block.inode[j].direct[k]; k++)
-                printf("%d ", direct_block.inode[j].direct[k]);
+            for(int k = 0; k < POINTERS_PER_INODE; k++)
+                if(direct_block.inode[j].direct[k]) printf("%d ", direct_block.inode[j].direct[k]);
             printf("\n");
 
             // If the inode has an indirect pointer, process the target indoe
@@ -125,7 +124,7 @@ void fs_debug(){
 
             // Read in the indrect block and process it
             union fs_block indirect_block;
-            disk_read(block.inode[j].indirect, indirect_block.data);
+            disk_read(direct_block.inode[j].indirect, indirect_block.data);
 
             // Report the direct pointers in the inode
             for(int m = 0; m < POINTERS_PER_BLOCK; m++)
@@ -155,39 +154,40 @@ int fs_mount(){
     G_FREE_BLOCK_BITMAP = malloc(8 * superblock.super.nblocks);
 
     // For each inode block...
-    int i;
-    for(i = 1; i <= superblock.super.ninodeblocks; i++){
+    for(int i = 1; i <= superblock.super.ninodeblocks; i++){
 
         // Read in the inode block
         union fs_block block;
         disk_read(i, block.data);
 
+        // Mark all inode blocks as used
+        G_FREE_BLOCK_BITMAP[i] = 1;
+
         // For each inode in the block we just read...
-        int j;
-        for(j = 0; j < INODES_PER_BLOCK; j++){
+        for(int j = 0; j < INODES_PER_BLOCK; j++){
 
             // Skip empty inodes
             if(!block.inode[j].isvalid) continue;
 
             // Mark each used block as such in the bitmap
-            int k;
-            for(k = 0; k < POINTERS_PER_INODE && block.inode[j].direct[k]; k++)
+            for(int k = 0; k < POINTERS_PER_INODE && block.inode[j].direct[k]; k++)
                 G_FREE_BLOCK_BITMAP[block.inode[j].direct[k]] = 1;
 
             // Record any blocks in use via indirection (else continue)
             if(!block.inode[j].indirect) continue;
 
+            // Mark the block of indirect pointers as used
+            G_FREE_BLOCK_BITMAP[block.inode[j].indirect] = 1;
+
             union fs_block indirect_block;
             disk_read(block.inode[j].indirect, indirect_block.data);
 
             // Update bitmap with indirectly referenced blocks
-            for(k = 0; k < POINTERS_PER_BLOCK; k++)
+            for(int k = 0; k < POINTERS_PER_BLOCK; k++)
                 if(indirect_block.pointers[k])
                     G_FREE_BLOCK_BITMAP[indirect_block.pointers[k]] = 1;
 
         }
-
-        if(i <= superblock.super.ninodeblocks) G_FREE_BLOCK_BITMAP[i] = 1;
     }
 
     // Return 1 (success code; failure is 0)
@@ -447,13 +447,8 @@ int fs_write( int inumber, const char *data, int length, int offset ){
         else if(i < POINTERS_PER_INODE){
 
             // Locate the next free block
-            int target_block;
-            for(target_block = 1; target_block < superblock.super.nblocks; target_block++)
-                if(!G_FREE_BLOCK_BITMAP[target_block]) break;
-            if(target_block == superblock.super.nblocks){
-                printf("ERROR: No free block found.\n");
-                return 0;
-            }
+            int target_block = next_free_block();
+            if(!target_block) return 0;
 
             // Update the indode and the bitmap
             block.inode[i_index].direct[i] = target_block;
@@ -475,13 +470,10 @@ int fs_write( int inumber, const char *data, int length, int offset ){
 
     // If the inode's indirect pointer isn't set, find a block for it
     if(!block.inode[i_index].indirect){
-        int target_block;
-        for(target_block = 1; target_block < superblock.super.nblocks; target_block++)
-            if(!G_FREE_BLOCK_BITMAP[target_block]) break;
-        if(target_block == superblock.super.nblocks){
-            printf("ERROR: No room to allocate indirection block\n");
-            return 0;
-        }
+
+        // Locate the next open block
+        int target_block = next_free_block();
+        if(!target_block) return 0;
 
         // If a free block was found, update the inode and save changes
         block.inode[i_index].indirect = target_block;
@@ -513,13 +505,8 @@ int fs_write( int inumber, const char *data, int length, int offset ){
         else{
 
             // Find the block
-            int target_block;
-            for(target_block = 1; target_block < superblock.super.nblocks; target_block++)
-                if(!G_FREE_BLOCK_BITMAP[target_block]) break;
-            if(target_block == superblock.super.nblocks){
-                printf("ERROR: No room to allocate indirect data block.\n");
-                return 0;
-            }
+            int target_block = next_free_block();
+            if(!target_block) return 0;
 
             // Update the indrect pointer list, save changes, update bitmap
             indirect_block.pointers[i] = target_block;
@@ -538,5 +525,18 @@ int fs_write( int inumber, const char *data, int length, int offset ){
 
     // Now we should be done
     return bytes_written;
+}
+
+int next_free_block(){
+
+    // Get the super block for nblocks
+    union fs_block superblock;
+    disk_read(0, superblock.data);
+
+    // Scan the bitmap for an opening
+    for(int i = 1; i <= superblock.super.nblocks; i++)
+        if(!G_FREE_BLOCK_BITMAP[i]) return i;
+    printf("ERROR: No free blocks.\n");
+    return 0;
 }
 
