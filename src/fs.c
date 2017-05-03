@@ -154,7 +154,7 @@ int fs_mount(){
     }
 
     // Initialize and build free block bitmap
-    G_FREE_BLOCK_BITMAP = malloc(superblock.super.nblocks);
+    G_FREE_BLOCK_BITMAP = malloc(8 * superblock.super.nblocks);
 
     // For each inode block...
     int i;
@@ -189,7 +189,7 @@ int fs_mount(){
 
         }
 
-        if(i < superblock.super.ninodeblocks) G_FREE_BLOCK_BITMAP[i] = 1;
+        if(i <= superblock.super.ninodeblocks) G_FREE_BLOCK_BITMAP[i] = 1;
     }
 
     // Return 1 (success code; failure is 0)
