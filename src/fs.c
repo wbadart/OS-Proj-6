@@ -195,7 +195,10 @@ int fs_mount(){
 }
 
 int fs_create(){
-
+    if(!BEEN_MOUNTED){
+        printf("Disk needs to be mounted before you can create\n");
+        return 0;
+    }
     // The objective here is to find an open (invalid) inode, initialize
     // it for use, and then return its inumber
 
@@ -237,7 +240,10 @@ int fs_create(){
 }
 
 int fs_delete( int inumber ){
-
+    if(!BEEN_MOUNTED){
+        printf("Disk needs to be mounted before you can delete\n");
+        return 0;
+    }
     // Grab that super block
     union fs_block superblock;
     disk_read(0, superblock.data);
@@ -307,6 +313,10 @@ int fs_delete( int inumber ){
 
 int fs_getsize( int inumber )
 {
+    if(!BEEN_MOUNTED){
+        printf("Disk needs to be mounted before you can getsize\n");
+        return -1;
+    }
     int block_num = inumber / INODES_PER_BLOCK + 1;
     union fs_block block;
     disk_read(block_num, block.data);
@@ -319,6 +329,10 @@ int fs_getsize( int inumber )
 }
 
 int fs_read( int inumber, char *data, int length, int offset ){
+    if(!BEEN_MOUNTED){
+        printf("Disk needs to be mounted before you can read\n");
+        return 0;
+    }
     // get inode info
     int block_num = inumber / INODES_PER_BLOCK + 1;
     union fs_block block;
@@ -387,6 +401,10 @@ int fs_read( int inumber, char *data, int length, int offset ){
 
 int fs_write( int inumber, const char *data, int length, int offset ){
 
+    if(!BEEN_MOUNTED){
+        printf("Disk needs to be mounted before you can read\n");
+        return 0;
+    }
     printf("INFO: fs_write got length %d and offset %d\n", length, offset);
 
     // Get the super block for some sanity checks
