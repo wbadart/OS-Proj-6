@@ -59,11 +59,13 @@ int fs_format()
     SUPER.ninodeblocks = ninodeblocks;
     SUPER.ninodes = ninodes;
     //destroy any data already present by setting all the inode isvalid bits to 0
-    for(int i = 1; i < SUPER.ninodeblocks + 1; i++){
+    int i;
+    for(i = 1; i < SUPER.ninodeblocks + 1; i++){
         //read an inode block
         union fs_block inode_block;
         disk_read(i, inode_block.data);
-        for(int j = 0; j < INODES_PER_BLOCK; j++){
+        int j;
+        for(j = 0; j < INODES_PER_BLOCK; j++){
             //set all the inodes in that block to invalid
             inode_block.inode[j].isvalid = 0;
         }
@@ -88,14 +90,16 @@ void fs_debug(){
 
     // For each inode block (this excludes the super block
     // at index 0)...
-    for(int i = 1; i <= block.super.ninodeblocks; i++){
+    int i;
+    for(i = 1; i <= block.super.ninodeblocks; i++){
 
         // Read the block from disk to the block struct
         union fs_block direct_block;
         disk_read(i, direct_block.data);
 
         // For each inode in the block we just read...
-        for(int j = 0; j < INODES_PER_BLOCK; j++){
+        int j;
+        for(j = 0; j < INODES_PER_BLOCK; j++){
 
             // Skip invalid inodes, we only care about the ones
             // that refer to actual files
@@ -108,7 +112,8 @@ void fs_debug(){
 
             // Report each direct block pointer (the list is null terminated and
             // does not exceed POINTERS_PER_INODE in length)
-            for(int k = 0; k < POINTERS_PER_INODE && direct_block.inode[j].direct[k]; k++)
+            int k;
+            for(k = 0; k < POINTERS_PER_INODE && direct_block.inode[j].direct[k]; k++)
                 printf("%d ", direct_block.inode[j].direct[k]);
             printf("\n");
 
@@ -124,7 +129,8 @@ void fs_debug(){
             disk_read(block.inode[j].indirect, indirect_block.data);
 
             // Report the direct pointers in the inode
-            for(int m = 0; m < POINTERS_PER_INODE; m++)
+            int m;
+            for(m = 0; m < POINTERS_PER_INODE; m++)
                 if(indirect_block.pointers[m] > 0) printf("%d ", indirect_block.pointers[m]);
 
             // Print the newline after the full inode report
@@ -151,20 +157,23 @@ int fs_mount(){
     G_FREE_BLOCK_BITMAP = malloc(superblock.super.nblocks);
 
     // For each inode block...
-    for(int i = 1; i <= superblock.super.ninodeblocks; i++){
+    int i;
+    for(i = 1; i <= superblock.super.ninodeblocks; i++){
 
         // Read in the inode block
         union fs_block block;
         disk_read(i, block.data);
 
         // For each inode in the block we just read...
-        for(int j = 0; j < INODES_PER_BLOCK; j++){
+        int j;
+        for(j = 0; j < INODES_PER_BLOCK; j++){
 
             // Skip empty inodes
             if(!block.inode[j].isvalid) continue;
 
             // Mark each used block as such in the bitmap
-            for(int k = 0; k < POINTERS_PER_INODE && block.inode[j].direct[k]; k++)
+            int k;
+            for(k = 0; k < POINTERS_PER_INODE && block.inode[j].direct[k]; k++)
                 G_FREE_BLOCK_BITMAP[block.inode[j].direct[k]] = 1;
 
             // Record any blocks in use via indirection (else continue)
@@ -174,7 +183,7 @@ int fs_mount(){
             disk_read(block.inode[j].indirect, indirect_block.data);
 
             // Update bitmap with indirectly referenced blocks
-            for(int k = 0; k < POINTERS_PER_BLOCK; k++)
+            for(k = 0; k < POINTERS_PER_BLOCK; k++)
                 if(indirect_block.pointers[k])
                     G_FREE_BLOCK_BITMAP[indirect_block.pointers[k]] = 1;
 
@@ -194,13 +203,15 @@ int fs_create(){
     disk_read(0, superblock.data);
 
     // For each inode block...
-    for(int i = 1; i <= superblock.super.ninodeblocks; i++){
+    int i;
+    for(i = 1; i <= superblock.super.ninodeblocks; i++){
 
         union fs_block block;
         disk_read(i, block.data);
 
         // For each inode in the block...
-        for(int j = 0; j < INODES_PER_BLOCK; j++){
+        int j;
+        for(j = 0; j < INODES_PER_BLOCK; j++){
 
             // Skip VALID inodes
             if(block.inode[j].isvalid || !INODE_NUMBER(i, j)) continue;
@@ -210,7 +221,8 @@ int fs_create(){
             block.inode[j].isvalid  = 1;
             block.inode[j].size     = 0;
             block.inode[j].indirect = 0;
-            for(int k = 0; k < POINTERS_PER_INODE; k++)
+            int k;
+            for(k = 0; k < POINTERS_PER_INODE; k++)
                 block.inode[j].direct[k] = 0;
 
             // Write the changes to disk
@@ -256,7 +268,8 @@ int fs_delete( int inumber ){
     }
 
     // Update values in free block map, check direct pointers
-    for(int i = 0; i < POINTERS_PER_INODE && block.inode[inode_index].direct[i]; i++){
+    int i;
+    for(i = 0; i < POINTERS_PER_INODE && block.inode[inode_index].direct[i]; i++){
         G_FREE_BLOCK_BITMAP[block.inode[inode_index].direct[i]] = 0;
         block.inode[inode_index].direct[i] = 0;
     }
@@ -271,7 +284,7 @@ int fs_delete( int inumber ){
         // Read indirect block
         disk_read(indirect_block_num, indirect_block.data);
 
-        for(int i = 0; i < POINTERS_PER_BLOCK; i++){
+        for(i = 0; i < POINTERS_PER_BLOCK; i++){
             int b = indirect_block.pointers[i];
             if(b)
                 G_FREE_BLOCK_BITMAP[b] = 0;
@@ -302,7 +315,58 @@ int fs_getsize( int inumber )
 
 int fs_read( int inumber, char *data, int length, int offset )
 {
-    return 0;
+    // get inode info
+    int block_num = inumber / INODES_PER_BLOCK + 1;
+    union fs_block block;
+    disk_read(block_num, block.data);
+    int inode_index = inumber % INODES_PER_BLOCK;
+    // check if inode is valid
+    if(!block.inode[inode_index].isvalid){
+        printf("inode %d is invalid\n", inumber);
+        return 0;
+    }
+    int bytesread = 0;
+    int startblock = offset / 4096;
+    while(bytesread < length){
+        int i;
+        // start reading from direct pointers
+        for(i = startblock; i < POINTERS_PER_INODE; i++){
+            int b = block.inode[inode_index].direct[i];
+            if(b){
+                // read data block
+                union fs_block data_block;
+                disk_read(b, data_block.data);
+                // copy that data to end of our char *data
+                int numbytes = sizeof(data_block.data);
+                memcpy(data + bytesread, data_block.data, numbytes);
+                // increment bytes read
+                bytesread += numbytes;
+            }
+        }
+        // once finished reading direct blocks, go to indirect blocks
+        int indirect_block_num = block.inode[inode_index].indirect;
+        // if indirect pointer is not null
+        if(indirect_block_num > 0){
+            union fs_block indirect_block;
+            // read indirect block
+            disk_read(indirect_block_num, indirect_block.data);
+            for(i = 0; i < POINTERS_PER_BLOCK; i++){
+                int b = indirect_block.pointers[i];
+                if(b > 0){
+                    // if pointer is not null
+                    union fs_block data_block;
+                    // read data block
+                    disk_read(b, data_block.data);
+                    // copy that data to end of our char *data
+                    int numbytes = sizeof(data_block.data);
+                    memcpy(data + bytesread, data_block.data, numbytes);
+                    // increment bytes read
+                    bytesread += numbytes;
+                }
+            }
+        }
+    }
+    return bytesread;
 }
 
 int fs_write( int inumber, const char *data, int length, int offset )

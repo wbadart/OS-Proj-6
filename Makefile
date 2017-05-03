@@ -8,8 +8,8 @@
 # created: MAY 2017
 ##
 
-CXX	      = gcc
-CXX_FLAGS = -Wall -ggdb -std=gnu11
+CXX	      = /usr/bin/gcc
+CXX_FLAGS = -Wall -ggdb
 
 LD		  = gcc
 LD_FLAGS  =
