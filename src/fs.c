@@ -90,8 +90,7 @@ void fs_debug(){
 
     // For each inode block (this excludes the super block
     // at index 0)...
-    int i;
-    for(i = 1; i <= block.super.ninodeblocks; i++){
+    for(int i = 1; i <= block.super.ninodeblocks; i++){
 
         // Read the block from disk to the block struct
         union fs_block direct_block;
@@ -254,6 +253,7 @@ int fs_delete( int inumber ){
 
     // Calculate target block
     int blockno = inumber / INODES_PER_BLOCK + 1;
+    printf("target block is %d\n", blockno);
 
     // Read in the target block
     union fs_block block;
@@ -261,6 +261,7 @@ int fs_delete( int inumber ){
 
     // Index into the block
     int inode_index = inumber % INODES_PER_BLOCK;
+    printf("inode %d is %dth inode on block %d\n", inumber, inode_index, blockno);
 
     // Verify inode validity (can't delete an invalid inode)
     if(!block.inode[inode_index].isvalid){
@@ -269,10 +270,15 @@ int fs_delete( int inumber ){
     }
 
     // Update values in free block map, check direct pointers
-    int i;
-    for(i = 0; i < POINTERS_PER_INODE && block.inode[inode_index].direct[i]; i++){
-        G_FREE_BLOCK_BITMAP[block.inode[inode_index].direct[i]] = 0;
-        block.inode[inode_index].direct[i] = 0;
+    for(int i = 0; i < POINTERS_PER_INODE; i++){
+        int b = block.inode[inode_index].direct[i];
+        printf("direct %d is %d\n", i, b);
+        if(b > 0){
+            printf("update bitmap at index %d\n", b);
+            G_FREE_BLOCK_BITMAP[b] = 0;
+            block.inode[inode_index].direct[i] = 0;
+            printf("setting direct %d to 0", i);
+        }
     }
 
     // Check indirect pointer
@@ -280,16 +286,21 @@ int fs_delete( int inumber ){
     int indirect_block_num = block.inode[inode_index].indirect;
 
     // If inode has indirect pointer, update those blocks in bitmap too
+    printf("indirect pointer is %d\n", indirect_block_num);
+
     if(indirect_block_num){
 
         // Read indirect block
         disk_read(indirect_block_num, indirect_block.data);
 
-        for(i = 0; i < POINTERS_PER_BLOCK; i++){
+        for(int i = 0; i < POINTERS_PER_BLOCK; i++){
             int b = indirect_block.pointers[i];
-            if(b)
+            if(b){
                 G_FREE_BLOCK_BITMAP[b] = 0;
+                indirect_block.pointers[i] = 0;
+            }
         }
+        disk_write(indirect_block_num, indirect_block.data);
     }
 
     // Nuke the metadata
