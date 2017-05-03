@@ -325,13 +325,16 @@ int fs_read( int inumber, char *data, int length, int offset )
         printf("inode %d is invalid\n", inumber);
         return 0;
     }
+    printf("inode %d is valid\n", inumber);
     int bytesread = 0;
     int startblock = offset / 4096;
-    while(bytesread < length){
+    //printf("offset is %d so start reading at %d pointer\n", offset, startblock);
+    //while(bytesread < length){
         int i;
         // start reading from direct pointers
         for(i = startblock; i < POINTERS_PER_INODE; i++){
             int b = block.inode[inode_index].direct[i];
+            //printf("direct pointer %d points to %d\n", i, b);
             if(b){
                 // read data block
                 union fs_block data_block;
@@ -339,12 +342,18 @@ int fs_read( int inumber, char *data, int length, int offset )
                 // copy that data to end of our char *data
                 int numbytes = sizeof(data_block.data);
                 memcpy(data + bytesread, data_block.data, numbytes);
+                //printf("copied %d bytes\n", numbytes);
                 // increment bytes read
                 bytesread += numbytes;
+                //printf("read %d out of %d bytes\n", bytesread, length);
+                if(bytesread >= length)
+                    return bytesread;
             }
         }
+        //printf("finished reading direct blocks\n");
         // once finished reading direct blocks, go to indirect blocks
         int indirect_block_num = block.inode[inode_index].indirect;
+        //printf("indirect pointer points to %d\n", indirect_block_num);
         // if indirect pointer is not null
         if(indirect_block_num > 0){
             union fs_block indirect_block;
@@ -352,6 +361,7 @@ int fs_read( int inumber, char *data, int length, int offset )
             disk_read(indirect_block_num, indirect_block.data);
             for(i = 0; i < POINTERS_PER_BLOCK; i++){
                 int b = indirect_block.pointers[i];
+                //printf("indirect pointer %d points to %d\n", i, b);
                 if(b > 0){
                     // if pointer is not null
                     union fs_block data_block;
@@ -362,10 +372,12 @@ int fs_read( int inumber, char *data, int length, int offset )
                     memcpy(data + bytesread, data_block.data, numbytes);
                     // increment bytes read
                     bytesread += numbytes;
+                    if(bytesread >= length)
+                        return bytesread;
                 }
             }
         }
-    }
+    //}
     return bytesread;
 }
 
@@ -401,7 +413,8 @@ int fs_write( int inumber, const char *data, int length, int offset ){
     int blocks_needed = length / DISK_BLOCK_SIZE;
 
     // Write them bytes
-    for(int i = 0; i < blocks_needed; i++){
+    int i;
+    for(i = 0; i < blocks_needed; i++){
 
         // Find out if inode has direct block ready
         if(block.inode[i_index].direct[i]){
