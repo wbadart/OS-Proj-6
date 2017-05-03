@@ -188,6 +188,8 @@ int fs_mount(){
                     G_FREE_BLOCK_BITMAP[indirect_block.pointers[k]] = 1;
 
         }
+
+        if(i < superblock.super.ninodeblocks) G_FREE_BLOCK_BITMAP[i] = 1;
     }
 
     // Return 1 (success code; failure is 0)
@@ -383,6 +385,8 @@ int fs_read( int inumber, char *data, int length, int offset ){
 
 int fs_write( int inumber, const char *data, int length, int offset ){
 
+    printf("INFO: fs_write got length %d and offset %d\n", length, offset);
+
     // Get the super block for some sanity checks
     union fs_block superblock;;
     disk_read(0, superblock.data);
@@ -417,9 +421,11 @@ int fs_write( int inumber, const char *data, int length, int offset ){
         if(block.inode[i_index].direct[i]){
 
             // Write 4kb at a time
+            printf("INFO: Writing to direct block %d\n", block.inode[i_index].direct[i]);
             disk_write(block.inode[i_index].direct[i], data + bytes_written);
             G_FREE_BLOCK_BITMAP[block.inode[i_index].direct[i]] = 1;
             bytes_written += DISK_BLOCK_SIZE;
+
             block.inode[i_index].size += DISK_BLOCK_SIZE;
             disk_write(blockno, block.data);
 
@@ -446,8 +452,11 @@ int fs_write( int inumber, const char *data, int length, int offset ){
             G_FREE_BLOCK_BITMAP[target_block] = 1;
 
             // Write the data
+            printf("INFO: Writing to allocated direct block %d\n", target_block);
             disk_write(target_block, data + bytes_written);
             bytes_written += DISK_BLOCK_SIZE;
+
+            if(bytes_written >= length) return bytes_written;
         }
     }
 
@@ -486,6 +495,7 @@ int fs_write( int inumber, const char *data, int length, int offset ){
             // Write the data, update bytes written
             disk_write(indirect_block.pointers[i], data + bytes_written);
             bytes_written += DISK_BLOCK_SIZE;
+            printf("INFO: Writing to indirect block %d\n", indirect_block.pointers[i]);
             if(bytes_written >= length) return bytes_written;
         }
 
@@ -511,6 +521,7 @@ int fs_write( int inumber, const char *data, int length, int offset ){
 
             // Write the raw data and update bytes written
             disk_write(target_block, data + bytes_written);
+            printf("INFO: Writing to allocated indirect block %d\n", target_block);
             if(bytes_written >= length) return bytes_written;
         }
     }
