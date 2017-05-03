@@ -129,8 +129,7 @@ void fs_debug(){
             disk_read(block.inode[j].indirect, indirect_block.data);
 
             // Report the direct pointers in the inode
-            int m;
-            for(m = 0; m < POINTERS_PER_INODE; m++)
+            for(int m = 0; m < POINTERS_PER_BLOCK; m++)
                 if(indirect_block.pointers[m] > 0) printf("%d ", indirect_block.pointers[m]);
 
             // Print the newline after the full inode report
